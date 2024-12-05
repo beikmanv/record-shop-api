@@ -236,4 +236,8 @@ buildNumber.properties
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
 
+### Spring Profiles ###
+application-*.properties
+!application-dev.properties
+
 # End of https://www.toptal.com/developers/gitignore/api/java,intellij,maven,jetbrains

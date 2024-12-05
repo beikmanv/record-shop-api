@@ -19,5 +19,5 @@ public interface AlbumService {
     Album updateAlbum(Long id, Album album);
 
     // Delete an album by ID
-    void deleteAlbum(Long id);
+    Optional<Album> deleteAlbum(Long id);
 }

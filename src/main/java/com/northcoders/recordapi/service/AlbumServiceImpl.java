@@ -44,12 +44,12 @@ public class AlbumServiceImpl implements AlbumService{
     }
 
     @Override
-    public void deleteAlbum(Long id) {
-        if (albumRepository.existsById(id)) {
+    public Optional<Album> deleteAlbum(Long id) {
+        Optional<Album> album = albumRepository.findById(id);
+        if (album.isPresent()) {
             albumRepository.deleteById(id);
-        } else {
-            throw new RuntimeException("There's no album with " + id + " id");
+            return album;
         }
-
+        return Optional.empty(); // Return empty if the album was not found
     }
 }
