@@ -1,11 +1,10 @@
 package com.northcoders.recordapi.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -19,22 +18,28 @@ public class Album {
     private Long id;
 
     @Column(nullable = false, length = 255)
+    @NotNull(message = "Title is required")
     private String title;
 
     @Column(nullable = false, length = 255)
+    @NotNull(message = "Artist is required")
     private String artist;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @NotNull(message = "Genre is required")
     private Genre genre;
 
     @Column(nullable = false)
+    @NotNull(message = "Release year is required")
     private int releaseYear;
 
     @Column(nullable = false)
+    @NotNull(message = "Stock is required")
     private int stock;
 
     @Column(nullable = false)
+    @NotNull(message = "Price is required")
     private double price;
 
     @Column(nullable = false)
@@ -55,4 +60,3 @@ public class Album {
         this.updatedAt = LocalDateTime.now();
     }
 }
-

@@ -47,7 +47,7 @@ public class AlbumControllerTest {
 
     @Test
     public void testGetAllAlbums_Basic() throws Exception {
-        mockMvc.perform(get("/api/v1/albums"))
+        mockMvc.perform(get("/api/v1/album"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON));
     }
@@ -62,13 +62,13 @@ public class AlbumControllerTest {
         when(albumService.getAllAlbums()).thenReturn(albums);
 
         // Act
-        mockMvc.perform(get("/api/v1/albums"))
+        mockMvc.perform(get("/api/v1/album"))
+
+                // Assert
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("Album 1"))
                 .andExpect(jsonPath("$[1].title").value("Album 2"))
                 .andReturn();
-
-        // Assert
         verify(albumService, times(1)).getAllAlbums();
     }
 
@@ -78,7 +78,7 @@ public class AlbumControllerTest {
         when(albumService.getAllAlbums()).thenReturn(Collections.emptyList());
 
         // Act & Assert
-        mockMvc.perform(get("/api/v1/albums"))
+        mockMvc.perform(get("/api/v1/album"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
         verify(albumService, times(1)).getAllAlbums();
@@ -109,31 +109,32 @@ public class AlbumControllerTest {
     }
 
     @Test
-    public void testCreateAlbum_WithParam() throws Exception {
+    public void testCreateAlbum_ObjectMapper() throws Exception {
         // Arrange
         Album createdAlbum = new Album(1L, "New Album", "New Artist", Genre.JAZZ, 2023, 20, 14.99, null, null);
         when(albumService.createAlbum(Mockito.any(Album.class))).thenReturn(createdAlbum);
 
-        // Build the request using MockHttpServletRequestBuilder
-        this.mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/albums")
+        // Act
+        this.mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/album")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(createdAlbum)))
+
+                // Assert
                 .andExpect(MockMvcResultMatchers.status().isCreated())
                 .andExpect(jsonPath("$.title").value("New Album"))
                 .andExpect(jsonPath("$.artist").value("New Artist"));
-
         verify(albumService, times(1)).createAlbum(Mockito.any(Album.class));
     }
 
     @Test
-    public void testCreateAlbum_WithContent() throws Exception {
+    public void testCreateAlbum_WithoutObjectMapper() throws Exception {
         // Arrange
         Album album = new Album(null, "New Album", "New Artist", Genre.JAZZ, 2023, 20, 14.99, null, null);
         Album createdAlbum = new Album(1L, "New Album", "New Artist", Genre.JAZZ, 2023, 20, 14.99, null, null);
         when(albumService.createAlbum(Mockito.any(Album.class))).thenReturn(createdAlbum);
 
         // Act & Assert
-        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/api/v1/albums")
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/api/v1/album")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -153,29 +154,54 @@ public class AlbumControllerTest {
     }
 
     @Test
-    public void testCreateAlbumWithoutParamOrContent() throws Exception {
+    public void testCreateAlbum_Ver2() throws Exception {
         // Arrange
         Album createdAlbum = new Album(1L, "New Album", "New Artist", Genre.JAZZ, 2023, 20, 14.99, null, null);
         when(albumService.createAlbum(Mockito.any(Album.class))).thenReturn(createdAlbum);
 
-        // Build the request using MockHttpServletRequestBuilder
-        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/api/v1/albums")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .param("title", "New Album")
-                .param("artist", "New Artist")
-                .param("genre", "JAZZ")
-                .param("releaseYear", "2023")
-                .param("stock", "20")
-                .param("price", "14.99");
-
         // Act & Assert
-        mockMvc.perform(requestBuilder)
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.title").value("New Album"));
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/album") // Ensure the URL matches the controller's mapping
+                        .contentType(MediaType.APPLICATION_JSON)  // Content type should match the controller's expected type
+                        .content(objectMapper.writeValueAsString(createdAlbum)))  // Convert the created album to JSON
 
+                .andExpect(status().isCreated())  // Expect status code 201 (Created)
+                .andExpect(jsonPath("$.title").value("New Album"))  // Validate the response body
+                .andExpect(jsonPath("$.artist").value("New Artist"));
+
+        // Verify that the service method was called exactly once
         verify(albumService, times(1)).createAlbum(Mockito.any(Album.class));
     }
 
+    @Test
+    public void testCreateEmptyAlbum() throws Exception {
+        // Arrange: Create an empty album object
+        Album emptyAlbum = new Album(null, null, null, null, 0, 0, 0.0, null, null);
+
+        // Act & Assert: Perform POST with empty data and expect a 400 Bad Request
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/album")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(emptyAlbum))) // Sending empty album data
+                .andExpect(status().isBadRequest()); // Expect 400 Bad Request because required fields are missing
+    }
+
+    @Test
+    public void testCreateAlbumWithInvalidData() throws Exception {
+        // Arrange: Create an album with invalid data (e.g., a non-numeric value for 'releaseYear')
+        String invalidAlbumJson = "{"
+                + "\"title\": \"New Album\","
+                + "\"artist\": \"New Artist\","
+                + "\"genre\": \"JAZZ\","
+                + "\"releaseYear\": \"invalid_year\","
+                + "\"stock\": 20,"
+                + "\"price\": 14.99"
+                + "}";
+
+        // Act & Assert: Perform POST with invalid data and expect 400 Bad Request
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/album")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidAlbumJson)) // Sending invalid album data
+                .andExpect(status().isBadRequest()); // Expect 400 Bad Request because of invalid data
+    }
 
     @Test
     public void testUpdateAlbum() throws Exception {
@@ -221,6 +247,43 @@ public class AlbumControllerTest {
                                 """))
                 .andExpect(status().isNotFound());
         verify(albumService, times(1)).updateAlbum(eq(1L), Mockito.any(Album.class));
+    }
+
+    @Test
+    public void testPutEmptyAlbum() throws Exception {
+        // Arrange: Create an empty album object
+        Album emptyAlbum = new Album(null, null, null, null, 0, 0, 0.0, null, null);
+
+        // Mock the service: when trying to update album with ID 1, return null (simulate a failure, could also be a valid object)
+        when(albumService.updateAlbum(eq(1L), any(Album.class))).thenReturn(null); // Simulating that the album is not found or not updated
+
+        // Act & Assert: Perform PUT with empty data and expect a 400 Bad Request because of validation failures
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/album/1") // Assume the album with ID 1 exists
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(emptyAlbum))) // Sending empty album data
+                .andExpect(status().isBadRequest()); // Expect 400 Bad Request due to validation failures
+
+        // Verify that the updateAlbum service method is not called with invalid data
+        verify(albumService, times(0)).updateAlbum(eq(1L), any(Album.class)); // Ensure the service method is not called
+    }
+
+    @Test
+    public void testPutAlbumWithInvalidData() throws Exception {
+        // Arrange: Create an album with invalid data (e.g., invalid 'releaseYear')
+        String invalidAlbumJson = "{"
+                + "\"title\": \"Updated Album\","
+                + "\"artist\": \"Updated Artist\","
+                + "\"genre\": \"JAZZ\","
+                + "\"releaseYear\": \"invalid_year\","
+                + "\"stock\": 20,"
+                + "\"price\": 14.99"
+                + "}";
+
+        // Act & Assert: Perform PUT with invalid data and expect 400 Bad Request
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/album/1") // Assume the album with ID 1 exists
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidAlbumJson)) // Sending invalid album data
+                .andExpect(status().isBadRequest()); // Expect 400 Bad Request due to invalid data
     }
 
     @Test

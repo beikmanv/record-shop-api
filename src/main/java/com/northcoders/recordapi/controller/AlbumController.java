@@ -3,6 +3,7 @@ package com.northcoders.recordapi.controller;
 import com.northcoders.recordapi.model.Album;
 import com.northcoders.recordapi.service.AlbumService;
 import com.northcoders.recordapi.service.AlbumServiceImpl;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,19 +38,19 @@ public class AlbumController {
 
     // Create a new album
     @PostMapping("/album")
-    public ResponseEntity<Album> createAlbum(@RequestBody Album album) {
+    public ResponseEntity<Album> createAlbum(@Valid @RequestBody Album album) {
         Album createdAlbum = albumService.createAlbum(album);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdAlbum);
     }
 
     // Update an album
     @PutMapping("album/{id}")
-    public ResponseEntity<Album> updateAlbum(@PathVariable Long id, @RequestBody Album album) {
-        Album updatedAlbum = albumService.updateAlbum(id, album);
-        if (updatedAlbum != null) {
-            return ResponseEntity.ok(updatedAlbum);
+    public ResponseEntity<Album> updateAlbum(@PathVariable Long id, @RequestBody @Valid Album album) {
+        Album existingAlbum = albumService.updateAlbum(id, album);
+        if (existingAlbum == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); // Album not found
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.ok(existingAlbum); // Update successful
         }
     }
 
