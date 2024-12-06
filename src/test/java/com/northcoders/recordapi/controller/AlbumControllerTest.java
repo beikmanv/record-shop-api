@@ -2,6 +2,7 @@ package com.northcoders.recordapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
+import com.northcoders.recordapi.exception.AlbumNotFoundException;
 import com.northcoders.recordapi.model.Album;
 import com.northcoders.recordapi.model.Genre;
 import com.northcoders.recordapi.service.AlbumService;
@@ -31,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 import static org.springframework.mock.http.server.reactive.MockServerHttpRequest.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -360,4 +362,72 @@ public class AlbumControllerTest {
         verify(albumService, times(1)).createAlbum(any(Album.class));
     }
 
+    @Test
+    public void testUpdateAlbumNotFound() throws Exception {
+        // Given
+        Album album = new Album(null, "Dark Side of the Moon", "Pink Floyd", Genre.ROCK, 1973, 10, 29.99, null, null);
+        when(albumService.updateAlbum(anyLong(), any(Album.class))).thenThrow(new AlbumNotFoundException("Album with ID 999 not found"));
+
+        // When & Then
+        mockMvc.perform(put("/api/v1/album/{id}", 999L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(album)))
+                .andExpect(status().isNotFound())  // Status 404 Not Found
+                .andExpect(content().string("{\"error\":\"Album with ID 999 not found\"}"));
+    }
+
+    @Test
+    public void testUpdateAlbumBadRequest_FieldIsBlank() throws Exception {
+        // Given: Invalid data (missing title)
+        Album album = new Album(null, "", "Pink Floyd", Genre.ROCK, 1973, 10, 29.99, null, null);
+
+        // When & Then
+        mockMvc.perform(put("/api/v1/album/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(album)))
+                .andExpect(status().isBadRequest())  // Expect status 400
+                .andExpect(content().json("{\"title\":\"Title must not be blank\"}"));  // Expect error message for the 'title' field
+    }
+
+//    @Test
+//    public void testUpdateAlbumBadRequest() throws Exception {
+//        // Given: Invalid data (missing fields)
+//        Album album = new Album(null, "", "", null, 1999, 6, 44, null, null);
+//
+//        // When & Then
+//        mockMvc.perform(put("/api/v1/album/{id}", 7L)
+//                        .contentType(MediaType.APPLICATION_JSON)
+//                        .content(objectMapper.writeValueAsString(album)))
+//                .andExpect(status().isBadRequest())  // Expect status 400
+//                .andExpect(content().json("{"
+//                        + "\"title\":\"Title must not be blank\","
+//                        + "\"artist\":\"Artist must not be blank\","
+//                        + "\"genre\":\"Genre must not be blank\","
+//                        + "\"releaseYear\":\"Release year must not be null\","
+//                        + "\"stock\":\"Stock must not be null\","
+//                        + "\"price\":\"Price must not be null\""
+//                        + "}"));
+//    }
+
+    @Test
+    public void testCreateAlbumWithInvalidGenre() throws Exception {
+        String invalidAlbumJson = """
+        {
+            "title": "Test Album",
+            "artist": "Test Artist",
+            "genre": "INVALID_GENRE",
+            "releaseYear": 2023,
+            "stock": 10,
+            "price": 15.99
+        }
+        """;
+
+        // Act & Assert: Perform POST with empty data and expect a 400 Bad Request
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/album")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content((invalidAlbumJson)))
+                .andDo(print())  // Prints the response to the console
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.genre").value("Invalid genre: INVALID_GENRE"));
+    }
 }

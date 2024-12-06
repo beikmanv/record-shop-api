@@ -1,6 +1,7 @@
 package com.northcoders.recordapi.service;
 
 import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
+import com.northcoders.recordapi.exception.AlbumNotFoundException;
 import com.northcoders.recordapi.model.Album;
 import com.northcoders.recordapi.model.Genre;
 import com.northcoders.recordapi.repository.AlbumRepository;
@@ -165,6 +166,17 @@ public class AlbumServiceTest {
         verify(albumRepository, times(0)).save(any(Album.class));
     }
 
-
+//    @Test
+//    public void testUpdateAlbumNotFound() {
+//        // Given
+//        Album album = new Album(1L, "The Dark Side of the Moon", "Pink Floyd", Genre.ROCK, 1973, 10, 29.99, null, null);
+//        when(albumRepository.existsById(anyLong())).thenReturn(false);  // Album doesn't exist
+//
+//        // When & Then
+//        AlbumNotFoundException exception = assertThrows(AlbumNotFoundException.class, () -> {
+//            albumService.updateAlbum(1L, album);
+//        });
+//        assertEquals("Album with ID 1 not found", exception.getMessage());
+//    }
 
 }

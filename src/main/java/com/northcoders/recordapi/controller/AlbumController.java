@@ -20,7 +20,6 @@ public class AlbumController {
     @Autowired
     private AlbumService albumService;
 
-
     // Get all albums
     @GetMapping("/album")
     public ResponseEntity<List<Album>> getAllAlbums() {
