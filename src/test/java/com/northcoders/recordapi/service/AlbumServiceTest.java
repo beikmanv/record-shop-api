@@ -1,5 +1,6 @@
 package com.northcoders.recordapi.service;
 
+import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
 import com.northcoders.recordapi.model.Album;
 import com.northcoders.recordapi.model.Genre;
 import com.northcoders.recordapi.repository.AlbumRepository;
@@ -147,4 +148,23 @@ public class AlbumServiceTest {
         verify(albumRepository, times(1)).findById(1L);
         verify(albumRepository, times(0)).deleteById(anyLong());
     }
+
+    @Test
+    public void testCreateDuplicateAlbum() {
+        // Arrange
+        Album album = new Album(null, "The Dark Side of the Moon", "Pink Floyd", Genre.ROCK, 1973, 10, 29.99, null, null);
+        when(albumRepository.findByTitleAndArtistAndReleaseYear(anyString(), anyString(), anyInt()))
+                .thenReturn(java.util.Optional.of(album));  // Simulate the duplicate check
+
+        // Act & Assert: Expect the exception to be thrown
+        assertThrows(AlbumAlreadyExistsException.class, () -> {
+            albumService.createAlbum(album);
+        });
+
+        // Verify the repository was not called to save a duplicate
+        verify(albumRepository, times(0)).save(any(Album.class));
+    }
+
+
+
 }

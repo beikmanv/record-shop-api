@@ -1,6 +1,7 @@
 package com.northcoders.recordapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
 import com.northcoders.recordapi.model.Album;
 import com.northcoders.recordapi.model.Genre;
 import com.northcoders.recordapi.service.AlbumService;
@@ -9,25 +10,31 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 import static org.springframework.mock.http.server.reactive.MockServerHttpRequest.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 public class AlbumControllerTest {
 
     private MockMvc mockMvc;
@@ -41,7 +48,9 @@ public class AlbumControllerTest {
 
     @BeforeEach
     public void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(albumController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(albumController)
+                .setControllerAdvice(new GlobalExceptionHandler()) // Register the custom handler
+                .build();
         objectMapper = new ObjectMapper();
     }
 
@@ -325,6 +334,30 @@ public class AlbumControllerTest {
 
         // Verify that the service method was called with the correct ID
         verify(albumService, times(1)).deleteAlbum(nonExistingId);
+    }
+
+    @Test
+    public void testCreateDuplicateAlbum() throws Exception {
+        // Arrange: Create a duplicate album
+        Album duplicateAlbum = new Album(null, "The Dark Side of the Moon", "Pink Floyd", Genre.ROCK, 1973, 10, 29.99, null, null);
+
+        // Mock the service to throw AlbumAlreadyExistsException when trying to create the album
+        when(albumService.createAlbum(any(Album.class)))
+                .thenThrow(new AlbumAlreadyExistsException("Album already exists"));
+
+        // Act & Assert: Perform POST request and expect 409 Conflict with the error message
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/album")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(duplicateAlbum)))
+                .andReturn();
+
+        // Assert: Verify the status and response body
+        assertEquals(HttpStatus.CONFLICT.value(), result.getResponse().getStatus());
+        String responseBody = result.getResponse().getContentAsString();
+        assertTrue(responseBody.contains("Album already exists"));
+
+        // Verify that the service method is called once
+        verify(albumService, times(1)).createAlbum(any(Album.class));
     }
 
 }

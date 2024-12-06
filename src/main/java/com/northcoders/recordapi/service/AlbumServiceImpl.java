@@ -1,5 +1,6 @@
 package com.northcoders.recordapi.service;
 
+import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
 import com.northcoders.recordapi.model.Album;
 import com.northcoders.recordapi.repository.AlbumRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,14 @@ public class AlbumServiceImpl implements AlbumService{
 
     @Override
     public Album createAlbum(Album album) {
-        return albumRepository.save(album);
+        Optional<Album> existingAlbum = albumRepository.findByTitleAndArtistAndReleaseYear(
+                album.getTitle(), album.getArtist(), album.getReleaseYear());
+
+        if (existingAlbum.isPresent()) {
+            throw new AlbumAlreadyExistsException("Album already exists");
+        } else {
+            return albumRepository.save(album);
+        }
     }
 
     @Override
