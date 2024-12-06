@@ -56,12 +56,12 @@ public class AlbumController {
 
     // Delete an album by ID
     @DeleteMapping("album/{id}")
-    public ResponseEntity<Album> deleteAlbum(@PathVariable Long id) {
-        Optional<Album> album = albumService.deleteAlbum(id);
-        if (album.isPresent()) {
-            return ResponseEntity.status(HttpStatus.OK).body(album.get());
+    public ResponseEntity<Void> deleteAlbum(@PathVariable Long id) {
+        Optional<Album> deletedAlbum = albumService.deleteAlbum(id);
+        if (deletedAlbum.isPresent()) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();  // Status 204: No Content
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();   // Status 404: Not Found
         }
     }
 

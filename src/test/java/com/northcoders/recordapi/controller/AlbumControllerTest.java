@@ -287,15 +287,16 @@ public class AlbumControllerTest {
     }
 
     @Test
-    public void testDeleteAlbum() throws Exception {
+    public void testDeleteAlbum_Success() throws Exception {
         // Arrange
         Album album = new Album(1L, "Album to Delete", "Artist", Genre.CLASSICAL, 2020, 5, 9.99, null, null);
-        when(albumService.deleteAlbum(1L)).thenReturn(Optional.of(album));
+        when(albumService.deleteAlbum(1L)).thenReturn(Optional.of(album));  // Mock successful deletion
 
         // Act & Assert
         mockMvc.perform(delete("/api/v1/album/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("Album to Delete"));
+                .andExpect(status().isNoContent());  // Expect 204 No Content for successful deletion
+
+        // Verify the service method was called once
         verify(albumService, times(1)).deleteAlbum(1L);
     }
 
@@ -310,5 +311,20 @@ public class AlbumControllerTest {
         verify(albumService, times(1)).deleteAlbum(1L);
     }
 
+    @Test
+    public void testDeleteAlbum_NonExistingAlbum() throws Exception {
+        // Arrange: Assume album with ID 999 does not exist
+        Long nonExistingId = 999L;
+
+        // Mock the service: Return Optional.empty() to simulate the album not existing
+        when(albumService.deleteAlbum(nonExistingId)).thenReturn(Optional.empty());
+
+        // Act & Assert: Perform DELETE request and expect 404 Not Found status
+        mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/album/" + nonExistingId))  // Perform DELETE with a non-existing ID
+                .andExpect(status().isNotFound());  // Expect 404 Not Found because the album doesn't exist
+
+        // Verify that the service method was called with the correct ID
+        verify(albumService, times(1)).deleteAlbum(nonExistingId);
+    }
 
 }

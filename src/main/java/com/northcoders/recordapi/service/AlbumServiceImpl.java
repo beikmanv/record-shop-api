@@ -44,8 +44,9 @@ public class AlbumServiceImpl implements AlbumService{
         Optional<Album> album = albumRepository.findById(id);
         if (album.isPresent()) {
             albumRepository.deleteById(id);
-            return album;
+            return album;  // Return the deleted album
         }
-        return Optional.empty(); // Return empty if the album was not found
+        return Optional.empty();  // Return empty if the album was not found
     }
+
 }
