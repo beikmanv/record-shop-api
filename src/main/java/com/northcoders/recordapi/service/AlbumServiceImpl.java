@@ -6,7 +6,6 @@ import com.northcoders.recordapi.repository.AlbumRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,7 +16,7 @@ public class AlbumServiceImpl implements AlbumService{
     private AlbumRepository albumRepository;
 
     @Autowired
-    private RecordCache recordCache;
+    private AlbumCache albumCache;
 
     @Override
     public List<Album> getAllAlbums() {
@@ -26,12 +25,13 @@ public class AlbumServiceImpl implements AlbumService{
 
     @Override
     public Optional<Album> getAlbumById(Long id) {
-        if (recordCache.getRecordCache().containsKey(id) && recordCache.isValid()) {
-            return Optional.of(recordCache.getRecordCache().get(id));
+        if (albumCache.getAlbumCache().containsKey(id) && albumCache.isValid()) {
+            return Optional.of(albumCache.getAlbumCache().get(id).cachedAlbum);
         } else {
             if (albumRepository.findById(id).isPresent()) {
-                recordCache.isValid = true;
-                recordCache.getRecordCache().put(id, albumRepository.findById(id).get());
+                albumCache.isValid = true;
+                AlbumCache.AlbumCachedObject albumCachedObject = new AlbumCache.AlbumCachedObject();
+                albumCache.getAlbumCache().put(id, albumCache.getAlbumCache().);
             }
             return albumRepository.findById(id);
         }
@@ -52,7 +52,8 @@ public class AlbumServiceImpl implements AlbumService{
     @Override
     public Album updateAlbum(Long id, Album album) {
         if (albumRepository.existsById((id))) {
-            recordCache.isValid = false;
+//            recordCache.isValid = false;
+            albumCache.setValid(false);
             album.setId(id);
             return albumRepository.save(album);
         } else {
@@ -64,6 +65,11 @@ public class AlbumServiceImpl implements AlbumService{
     public Optional<Album> deleteAlbum(Long id) {
         Optional<Album> album = albumRepository.findById(id);
         if (album.isPresent()) {
+            // Remove the album from the cache
+            albumCache.getAlbumCache().remove(id);
+            // Invalidate the cache flag if needed
+            albumCache.setValid(false);
+            // Delete the album from the database
             albumRepository.deleteById(id);
             return album;  // Return the deleted album
         }
