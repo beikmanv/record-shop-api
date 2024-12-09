@@ -6,6 +6,7 @@ import com.northcoders.recordapi.repository.AlbumRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,9 @@ public class AlbumServiceImpl implements AlbumService{
     @Autowired
     private AlbumRepository albumRepository;
 
+    @Autowired
+    private RecordCache recordCache;
+
     @Override
     public List<Album> getAllAlbums() {
         return albumRepository.findAll();
@@ -22,7 +26,15 @@ public class AlbumServiceImpl implements AlbumService{
 
     @Override
     public Optional<Album> getAlbumById(Long id) {
-        return albumRepository.findById(id);
+        if (recordCache.getRecordCache().containsKey(id) && recordCache.isValid()) {
+            return Optional.of(recordCache.getRecordCache().get(id));
+        } else {
+            if (albumRepository.findById(id).isPresent()) {
+                recordCache.isValid = true;
+                recordCache.getRecordCache().put(id, albumRepository.findById(id).get());
+            }
+            return albumRepository.findById(id);
+        }
     }
 
     @Override
@@ -40,6 +52,7 @@ public class AlbumServiceImpl implements AlbumService{
     @Override
     public Album updateAlbum(Long id, Album album) {
         if (albumRepository.existsById((id))) {
+            recordCache.isValid = false;
             album.setId(id);
             return albumRepository.save(album);
         } else {
