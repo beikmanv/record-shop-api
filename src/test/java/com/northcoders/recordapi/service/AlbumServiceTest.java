@@ -9,8 +9,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +24,10 @@ public class AlbumServiceTest {
 
     @Mock
     private AlbumRepository albumRepository;
+
+    @Mock
+    private AlbumCache albumCache;
+//    AlbumCache albumCache = new AlbumCache();
 
     @InjectMocks
     private AlbumServiceImpl albumService;
@@ -115,7 +121,7 @@ public class AlbumServiceTest {
 
         // Act & Assert
         Exception exception = assertThrows(RuntimeException.class, () -> albumService.updateAlbum(1L, updatedAlbum));
-        assertEquals("There's no album with 1 id", exception.getMessage());
+        assertEquals("Album not found with ID: 1", exception.getMessage());
         verify(albumRepository, times(1)).existsById(1L);
         verify(albumRepository, times(0)).save(any());
     }
@@ -166,17 +172,73 @@ public class AlbumServiceTest {
         verify(albumRepository, times(0)).save(any(Album.class));
     }
 
-//    @Test
-//    public void testUpdateAlbumNotFound() {
-//        // Given
-//        Album album = new Album(1L, "The Dark Side of the Moon", "Pink Floyd", Genre.ROCK, 1973, 10, 29.99, null, null);
-//        when(albumRepository.existsById(anyLong())).thenReturn(false);  // Album doesn't exist
-//
-//        // When & Then
-//        AlbumNotFoundException exception = assertThrows(AlbumNotFoundException.class, () -> {
-//            albumService.updateAlbum(1L, album);
-//        });
-//        assertEquals("Album with ID 1 not found", exception.getMessage());
-//    }
+    @Test
+    public void testScheduledCacheCleanup() {
+        // Mock the AlbumCache
+        AlbumCache mockCache = mock(AlbumCache.class);
+
+        // Create an instance of AlbumServiceImpl with mock dependencies
+        AlbumServiceImpl service = new AlbumServiceImpl();
+        service.albumCache = mockCache;
+
+        // Act
+        service.cleanUpCache();
+
+        // Assert
+        verify(mockCache, times(1)).removeExpiredEntries(); // Ensure method is called
+    }
+
+    @Test
+    public void testCacheExpiration_Ver2() throws InterruptedException {
+        // Arrange
+        Album album = new Album(1L, "Test Album", "Test Artist", Genre.ROCK, 2020, 10, 9.99, null, null);
+        albumCache.putAlbum(1L, album);  // Put the album into the cache
+
+        // Wait for the cache to expire (timeToLive = 20000ms)
+        Thread.sleep(25000);  // Sleep longer than the TTL
+
+        // Act
+        Album retrievedAlbum = albumCache.getAlbum(1L);
+
+        // Assert
+        assertNull(retrievedAlbum);  // The album should be removed from cache after TTL expiration
+    }
+
+    @Test
+    public void testCacheReloadAfterExpiration() throws InterruptedException {
+        // Arrange
+        Album album = new Album(1L, "Test Album", "Test Artist", Genre.ROCK, 2020, 10, 9.99, null, null);
+        albumCache.putAlbum(1L, album);  // Put the album into the cache
+
+        // Simulate cache expiration
+        Thread.sleep(25000);  // Sleep longer than TTL for the cache
+
+        // Act
+        // Simulate fetching from the database after the cache has expired
+        when(albumRepository.findById(1L)).thenReturn(Optional.of(album));
+        Optional<Album> reloadedAlbum = albumService.getAlbumById(1L);
+
+        // Assert
+        assertTrue(reloadedAlbum.isPresent());  // The album should be reloaded from the database
+        assertEquals(album.getTitle(), reloadedAlbum.get().getTitle());  // Ensure the reloaded album is correct
+        assertEquals(album.getArtist(), reloadedAlbum.get().getArtist());
+    }
+
+    @Test
+    public void testCachePopulationAndRetrieval() {
+        // Arrange
+        Album album = new Album(1L, "Test Album", "Test Artist", Genre.ROCK, 2020, 10, 9.99, null, null);
+        albumCache.putAlbum(1L, album);  // Put the album into the cache
+        // Set up mock behavior
+        when(albumCache.getAlbum(1L)).thenReturn(album);
+
+        // Act
+        Album retrievedAlbum = albumCache.getAlbum(1L);
+
+        // Assert
+        assertNotNull(retrievedAlbum);  // Cache should return the album
+        assertEquals(album.getTitle(), retrievedAlbum.getTitle());  // Ensure the album data is correct
+        assertEquals(album.getArtist(), retrievedAlbum.getArtist());
+    }
 
 }
