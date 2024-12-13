@@ -1,16 +1,28 @@
 package com.northcoders.recordapi.service;
 
 import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
+import com.northcoders.recordapi.exception.ArtistNotFoundException;
 import com.northcoders.recordapi.model.Album;
+import com.northcoders.recordapi.model.Artist;
 import com.northcoders.recordapi.repository.AlbumRepository;
+import com.northcoders.recordapi.repository.ArtistRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 public class AlbumServiceImpl implements AlbumService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AlbumServiceImpl.class);
+
+    @Autowired
+    private ArtistRepository artistRepository;
 
     @Autowired
     private AlbumRepository albumRepository;
@@ -47,33 +59,66 @@ public class AlbumServiceImpl implements AlbumService {
 
     @Override
     public Album createAlbum(Album album) {
+        // Ensure the artist exists before saving the album
+        Artist artist = album.getArtist();
+
+        // Check if the artist exists in the database
+        Optional<Artist> existingArtist = artistRepository.findById(artist.getId());
+        if (existingArtist.isEmpty()) {
+            throw new ArtistNotFoundException("Artist with id " + artist.getId() + " not found.");
+        }
+
+        // Ensure that no duplicate album exists with the same title, artist, and release year
         Optional<Album> existingAlbum = albumRepository.findByTitleAndArtistAndReleaseYear(
-                album.getTitle(), album.getArtist(), album.getReleaseYear());
+                album.getTitle(),
+                existingArtist.get(),  // Use the existing artist
+                album.getReleaseYear());
 
         if (existingAlbum.isPresent()) {
-            throw new AlbumAlreadyExistsException("Album already exists");
+            // Log the conflict details for debugging
+            String errorMsg = String.format("Album with title '%s', artist '%s', and release year '%d' already exists.",
+                    album.getTitle(),
+                    existingArtist.get().getName(),
+                    album.getReleaseYear());
+            logger.error(errorMsg); // Log detailed conflict error
+            throw new AlbumAlreadyExistsException(errorMsg); // Throw detailed exception
         } else {
+            // Save the new album in the repository
             Album savedAlbum = albumRepository.save(album);
+
             // Add the newly created album to the cache
             albumCache.putAlbum(savedAlbum.getId(), savedAlbum);
+
             return savedAlbum;
         }
     }
 
     @Override
     public Album updateAlbum(Long id, Album album) {
-        if (albumRepository.existsById(id)) {
+        Optional<Album> existingAlbumOpt = albumRepository.findById(id);
+        if (existingAlbumOpt.isPresent()) {
+            Album existingAlbum = existingAlbumOpt.get();
+
+            // Preserve createdAt and set updatedAt
+            album.setCreatedAt(existingAlbum.getCreatedAt()); // Do not change the createdAt
+            album.setUpdatedAt(LocalDateTime.now()); // Set updatedAt to the current timestamp
+
+            album.setId(id); // Ensure that the ID of the album is set correctly
+
+            // Save the updated album
+            Album updatedAlbum = albumRepository.save(album);
+
+            // Invalidate and update the cache
             albumCache.removeExpiredEntries(); // Clean up expired entries before updating
             albumCache.setValid(false); // Invalidate the cache
-            album.setId(id);
-            Album updatedAlbum = albumRepository.save(album);
-            // Add the updated album to the cache
-            albumCache.putAlbum(updatedAlbum.getId(), updatedAlbum);
+            albumCache.putAlbum(updatedAlbum.getId(), updatedAlbum); // Update cache with the new version
+
             return updatedAlbum;
         } else {
-            throw new RuntimeException("Album not found with ID: " + id);
+            throw new RuntimeException("Album not found with ID: " + id); // If the album doesn't exist
         }
     }
+
 
     @Override
     public Optional<Album> deleteAlbum(Long id) {
@@ -90,11 +135,11 @@ public class AlbumServiceImpl implements AlbumService {
     // Scheduled task to prune expired cache entries every 20 seconds
     @Scheduled(fixedRate = 20000)
     public void cleanUpCache() {
-        System.out.println("Running cache cleanup task...");
+//        System.out.println("Running cache cleanup task...");
         int initialSize = albumCache.getAlbumCache().size();
         albumCache.removeExpiredEntries(); // Perform cache cleanup
         int finalSize = albumCache.getAlbumCache().size();
-        System.out.println("Cache cleanup completed. Entries removed: " + (initialSize - finalSize));
+//        System.out.println("Cache cleanup completed. Entries removed: " + (initialSize - finalSize));
     }
 }
 

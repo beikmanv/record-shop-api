@@ -115,7 +115,7 @@ class AlbumCacheTest {
     }
 
     @Test
-    public void testCacheExpiration_WithDatabaseCheck() throws InterruptedException {
+    public void testCacheExpiration_WithDatabaseCheck_Mock() throws InterruptedException {
         // Arrange
         AlbumCache albumCache = new AlbumCache();
         AlbumServiceImpl albumService = new AlbumServiceImpl();

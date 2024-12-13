@@ -1,5 +1,6 @@
 package com.northcoders.recordapi.controller;
 
+import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
 import com.northcoders.recordapi.model.Album;
 import com.northcoders.recordapi.service.AlbumService;
 import com.northcoders.recordapi.service.AlbumServiceImpl;
@@ -9,13 +10,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/v1")
 public class AlbumController {
+
+//    private static final Logger logger = LoggerFactory.getLogger(AlbumServiceImpl.class);
 
     @Autowired
     private AlbumService albumService;
@@ -37,9 +41,18 @@ public class AlbumController {
 
     // Create a new album
     @PostMapping("/album")
-    public ResponseEntity<Album> createAlbum(@Valid @RequestBody Album album) {
-        Album createdAlbum = albumService.createAlbum(album);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdAlbum);
+    public ResponseEntity<Album> createAlbum(@RequestBody Album album) {
+        try {
+            Album savedAlbum = albumService.createAlbum(album);
+            return new ResponseEntity<>(savedAlbum, HttpStatus.CREATED);
+        } catch (AlbumAlreadyExistsException ex) {
+            // Log the detailed exception
+//            logger.error("Conflict Error: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(null); // Include detailed error message here if needed
+        } catch (Exception e) {
+//            logger.error("Unexpected Error: ", e);
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     // Update an album

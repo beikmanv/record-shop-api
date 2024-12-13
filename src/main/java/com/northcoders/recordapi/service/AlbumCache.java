@@ -29,12 +29,12 @@ public class AlbumCache {
     public void removeExpiredEntries() {
         long currentTime = System.currentTimeMillis();
         long expirationThreshold = 20000; // 20 seconds (20,000 milliseconds)
-        System.out.println("Removing expired entries...");
+//        System.out.println("Removing expired entries...");
         // Iterate over cache entries and remove expired ones
         albumCache.entrySet().removeIf(entry ->
                 currentTime - entry.getValue().getLastAccessed() > expirationThreshold
         );
-        System.out.println("Cache cleanup completed.");
+//        System.out.println("Cache cleanup completed.");
     }
 
     public void putAlbum(Long id, Album album) {
