@@ -63,9 +63,9 @@ public class AlbumServiceImpl implements AlbumService {
         Artist artist = album.getArtist();
 
         // Check if the artist exists in the database
-        Optional<Artist> existingArtist = artistRepository.findById(artist.getId());
+        Optional<Artist> existingArtist = artistRepository.findById(artist.getArtistId());
         if (existingArtist.isEmpty()) {
-            throw new ArtistNotFoundException("Artist with id " + artist.getId() + " not found.");
+            throw new ArtistNotFoundException("Artist with id " + artist.getArtistId() + " not found.");
         }
 
         // Ensure that no duplicate album exists with the same title, artist, and release year
@@ -87,7 +87,7 @@ public class AlbumServiceImpl implements AlbumService {
             Album savedAlbum = albumRepository.save(album);
 
             // Add the newly created album to the cache
-            albumCache.putAlbum(savedAlbum.getId(), savedAlbum);
+            albumCache.putAlbum(savedAlbum.getAlbumId(), savedAlbum);
 
             return savedAlbum;
         }
@@ -103,7 +103,7 @@ public class AlbumServiceImpl implements AlbumService {
             album.setCreatedAt(existingAlbum.getCreatedAt()); // Do not change the createdAt
             album.setUpdatedAt(LocalDateTime.now()); // Set updatedAt to the current timestamp
 
-            album.setId(id); // Ensure that the ID of the album is set correctly
+            album.setAlbumId(id); // Ensure that the ID of the album is set correctly
 
             // Save the updated album
             Album updatedAlbum = albumRepository.save(album);
@@ -111,7 +111,7 @@ public class AlbumServiceImpl implements AlbumService {
             // Invalidate and update the cache
             albumCache.removeExpiredEntries(); // Clean up expired entries before updating
             albumCache.setValid(false); // Invalidate the cache
-            albumCache.putAlbum(updatedAlbum.getId(), updatedAlbum); // Update cache with the new version
+            albumCache.putAlbum(updatedAlbum.getAlbumId(), updatedAlbum); // Update cache with the new version
 
             return updatedAlbum;
         } else {

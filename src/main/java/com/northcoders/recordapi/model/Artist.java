@@ -27,4 +27,5 @@ public class Artist {
     @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference  // Manage forward relationship for serialization
     private List<Album> albums;
+
 }
