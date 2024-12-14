@@ -22,6 +22,7 @@ import com.northcoders.recordapi.model.ErrorResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -40,10 +41,18 @@ public class AlbumController {
 
     // Get all albums
     @GetMapping("/album")
-    public ResponseEntity<List<Album>> getAllAlbums() {
-        List<Album> albums = albumService.getAllAlbums();
-        return ResponseEntity.ok(albums);
+    public ResponseEntity<List<AlbumResponseDTO>> getAllAlbums() {
+        // Fetch all albums from the repository
+        List<Album> albums = albumRepository.findAll();
+
+        // Convert albums to AlbumResponseDTO
+        List<AlbumResponseDTO> albumResponses = albums.stream()
+                .map(AlbumResponseDTO::new) // Map each album to an AlbumResponseDTO
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(albumResponses);
     }
+
 
     // Get album by ID
     @GetMapping("/album/{id}")
@@ -156,12 +165,6 @@ public class AlbumController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
-
-
-
-
-
-
 
 
     // Delete an album by ID
