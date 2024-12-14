@@ -1,9 +1,11 @@
 package com.northcoders.recordapi.service;
 
+import com.northcoders.recordapi.dto.AlbumRequestDTO;
 import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
 import com.northcoders.recordapi.exception.ArtistNotFoundException;
 import com.northcoders.recordapi.model.Album;
 import com.northcoders.recordapi.model.Artist;
+import com.northcoders.recordapi.model.Genre;
 import com.northcoders.recordapi.repository.AlbumRepository;
 import com.northcoders.recordapi.repository.ArtistRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,66 +60,56 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
-    public Album createAlbum(Album album) {
-        // Ensure the artist exists before saving the album
-        Artist artist = album.getArtist();
+    public Album createAlbum(AlbumRequestDTO albumRequestDTO) {
+        Artist artist = albumRequestDTO.getArtist();
 
-        // Check if the artist exists in the database
-        Optional<Artist> existingArtist = artistRepository.findById(artist.getArtistId());
-        if (existingArtist.isEmpty()) {
-            throw new ArtistNotFoundException("Artist with id " + artist.getArtistId() + " not found.");
+        // Ensure the artist exists before proceeding
+        if (artist == null || artist.getArtistId() == null) {
+            throw new RuntimeException("Artist not provided or invalid.");
         }
 
-        // Ensure that no duplicate album exists with the same title, artist, and release year
-        Optional<Album> existingAlbum = albumRepository.findByTitleAndArtistAndReleaseYear(
-                album.getTitle(),
-                existingArtist.get(),  // Use the existing artist
-                album.getReleaseYear());
+        // Create the album from the DTO
+        Album album = new Album();
+        album.setTitle(albumRequestDTO.getTitle());
+        album.setGenre(Genre.valueOf(albumRequestDTO.getGenre())); // Assuming Genre is an Enum
+        album.setReleaseYear(albumRequestDTO.getReleaseYear());
+        album.setStock(albumRequestDTO.getStock());
+        album.setPrice(albumRequestDTO.getPrice());
+        album.setArtist(artist); // Set the artist directly
 
-        if (existingAlbum.isPresent()) {
-            // Log the conflict details for debugging
-            String errorMsg = String.format("Album with title '%s', artist '%s', and release year '%d' already exists.",
-                    album.getTitle(),
-                    existingArtist.get().getName(),
-                    album.getReleaseYear());
-            logger.error(errorMsg); // Log detailed conflict error
-            throw new AlbumAlreadyExistsException(errorMsg); // Throw detailed exception
-        } else {
-            // Save the new album in the repository
-            Album savedAlbum = albumRepository.save(album);
-
-            // Add the newly created album to the cache
-            albumCache.putAlbum(savedAlbum.getAlbumId(), savedAlbum);
-
-            return savedAlbum;
-        }
+        // Save the album
+        return albumRepository.save(album);
     }
 
+
     @Override
-    public Album updateAlbum(Long id, Album album) {
+    public Album updateAlbum(Long id, AlbumRequestDTO albumRequestDTO) {
         Optional<Album> existingAlbumOpt = albumRepository.findById(id);
         if (existingAlbumOpt.isPresent()) {
             Album existingAlbum = existingAlbumOpt.get();
 
-            // Preserve createdAt and set updatedAt
-            album.setCreatedAt(existingAlbum.getCreatedAt()); // Do not change the createdAt
-            album.setUpdatedAt(LocalDateTime.now()); // Set updatedAt to the current timestamp
+            Artist artist = albumRequestDTO.getArtist();
 
-            album.setAlbumId(id); // Ensure that the ID of the album is set correctly
+            // Ensure the artist exists before proceeding
+            if (artist == null || artist.getArtistId() == null) {
+                throw new RuntimeException("Artist not provided or invalid.");
+            }
+
+            // Update album details
+            existingAlbum.setTitle(albumRequestDTO.getTitle());
+            existingAlbum.setGenre(Genre.valueOf(albumRequestDTO.getGenre())); // Assuming Genre is an Enum
+            existingAlbum.setReleaseYear(albumRequestDTO.getReleaseYear());
+            existingAlbum.setStock(albumRequestDTO.getStock());
+            existingAlbum.setPrice(albumRequestDTO.getPrice());
+            existingAlbum.setArtist(artist); // Set the artist directly
 
             // Save the updated album
-            Album updatedAlbum = albumRepository.save(album);
-
-            // Invalidate and update the cache
-            albumCache.removeExpiredEntries(); // Clean up expired entries before updating
-            albumCache.setValid(false); // Invalidate the cache
-            albumCache.putAlbum(updatedAlbum.getAlbumId(), updatedAlbum); // Update cache with the new version
-
-            return updatedAlbum;
+            return albumRepository.save(existingAlbum);
         } else {
-            throw new RuntimeException("Album not found with ID: " + id); // If the album doesn't exist
+            throw new RuntimeException("Album not found with ID: " + id);
         }
     }
+
 
 
     @Override

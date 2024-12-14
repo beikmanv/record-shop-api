@@ -16,12 +16,12 @@ import java.util.List;
 public class ArtistResponseDTO {
 
     private Long artistId;
-    private String name;
+    private String artistName;
     private List<String> albums;
 
     public ArtistResponseDTO(Artist artist) {
         this.artistId = artist.getArtistId();
-        this.name = artist.getName();
+        this.artistName = artist.getArtistName();
         this.albums = albums;
     }
 

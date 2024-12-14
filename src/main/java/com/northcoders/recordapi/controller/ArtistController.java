@@ -27,7 +27,7 @@ public class ArtistController {
         List<ArtistResponseDTO> artistDTOs = artists.stream()
                 .map(artist -> new ArtistResponseDTO(
                         artist.getArtistId(),
-                        artist.getName(),
+                        artist.getArtistName(),
                         artist.getAlbums().stream().map(Album::getTitle).collect(Collectors.toList())
                 ))
                 .collect(Collectors.toList());

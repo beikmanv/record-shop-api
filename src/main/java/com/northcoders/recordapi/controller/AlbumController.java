@@ -55,11 +55,11 @@ public class AlbumController {
     }
 
     // Create a new album
-    @PostMapping("/album")  // Ensure this method is mapped to a POST request for album creation
+    @PostMapping("/album")
     public ResponseEntity<AlbumResponseDTO> createAlbum(@RequestBody @Valid AlbumRequestDTO albumRequest) {
         try {
             // Check if the artist exists in the database
-            Optional<Artist> optionalArtist = artistRepository.findByName(albumRequest.getArtistName());
+            Optional<Artist> optionalArtist = artistRepository.findByArtistName(albumRequest.getArtist().getArtistName());
 
             Artist artist;
             if (optionalArtist.isPresent()) {
@@ -68,15 +68,15 @@ public class AlbumController {
             } else {
                 // If the artist doesn't exist, create a new artist
                 artist = new Artist();
-                artist.setName(albumRequest.getArtistName());
+                artist.setArtistName(albumRequest.getArtist().getArtistName()); // Set the name of the artist
                 artist = artistRepository.save(artist); // Save the new artist
-                log.warn("Artist '{}' was not found, a new artist has been created.", albumRequest.getArtistName());
+                log.warn("Artist '{}' was not found, a new artist has been created.", albumRequest.getArtist().getArtistName());
             }
 
             // Create and set album details
             Album album = new Album();
             album.setTitle(albumRequest.getTitle());
-            album.setGenre(Genre.valueOf(albumRequest.getGenre()));  // Make sure Genre matches valid enum values
+            album.setGenre(Genre.valueOf(albumRequest.getGenre())); // Make sure Genre matches valid enum values
             album.setReleaseYear(albumRequest.getReleaseYear());
             album.setStock(albumRequest.getStock());
             album.setPrice(albumRequest.getPrice());
@@ -93,18 +93,17 @@ public class AlbumController {
 
         } catch (DataIntegrityViolationException e) {
             log.error("Error inserting album: {}", e.getMessage());
-            // Return a generic error response but wrapped inside an AlbumResponseDTO (no actual album created)
             AlbumResponseDTO errorResponse = new AlbumResponseDTO();
             errorResponse.setMessage("Error with album insertion: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         } catch (Exception e) {
             log.error("Unexpected error: {}", e.getMessage());
-            // Return a generic error response but wrapped inside an AlbumResponseDTO (no actual album created)
             AlbumResponseDTO errorResponse = new AlbumResponseDTO();
             errorResponse.setMessage("Unexpected error: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
 
 
 
@@ -127,8 +126,8 @@ public class AlbumController {
                     .orElseThrow(() -> new RuntimeException("Artist not found"))
                     : existingAlbum.getArtist();
 
-            if (album.getArtist() != null && album.getArtist().getName() != null) {
-                artist.setName(album.getArtist().getName());
+            if (album.getArtist() != null && album.getArtist().getArtistName() != null) {
+                artist.setArtistName(album.getArtist().getArtistName());
                 artist = artistRepository.saveAndFlush(artist); // Ensure immediate persistence
             }
 
