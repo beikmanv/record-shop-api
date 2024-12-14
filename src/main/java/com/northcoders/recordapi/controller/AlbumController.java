@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,56 +110,54 @@ public class AlbumController {
 
     // Update an album
     @PutMapping("/album/{id}")
+    @Transactional
     public ResponseEntity<AlbumResponseDTO> updateAlbum(@PathVariable Long id, @RequestBody @Valid Album album) {
         try {
-            // Retrieve the existing album by ID
             Album existingAlbum = albumRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Album not found"));
 
-            // Check if the ID in the request body matches the album ID in the URL
             if (!album.getAlbumId().equals(id)) {
-                // Return an error message wrapped inside AlbumResponseDTO if the IDs don't match
                 AlbumResponseDTO errorResponse = new AlbumResponseDTO();
                 errorResponse.setMessage("Album ID mismatch: Cannot update with a different ID.");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
             }
 
-            // Fetch the artist based on the artistId from the album request
             Artist artist = album.getArtist() != null && album.getArtist().getArtistId() != null
                     ? artistRepository.findById(album.getArtist().getArtistId())
                     .orElseThrow(() -> new RuntimeException("Artist not found"))
-                    : existingAlbum.getArtist(); // If no artist ID is provided, keep the existing artist
+                    : existingAlbum.getArtist();
 
-            // Update the album's fields
+            if (album.getArtist() != null && album.getArtist().getName() != null) {
+                artist.setName(album.getArtist().getName());
+                artist = artistRepository.saveAndFlush(artist); // Ensure immediate persistence
+            }
+
             existingAlbum.setTitle(album.getTitle());
             existingAlbum.setGenre(album.getGenre());
             existingAlbum.setReleaseYear(album.getReleaseYear());
             existingAlbum.setStock(album.getStock());
             existingAlbum.setPrice(album.getPrice());
-            existingAlbum.setArtist(artist);  // Set the artist (could be new or existing)
+            existingAlbum.setArtist(artist);
             existingAlbum.setUpdatedAt(LocalDateTime.now());
 
-            // Save the updated album
-            Album updatedAlbum = albumRepository.save(existingAlbum);
+            Album updatedAlbum = albumRepository.saveAndFlush(existingAlbum); // Force immediate update
 
-            // Return the updated album in the response with all necessary details
             AlbumResponseDTO responseDTO = new AlbumResponseDTO(updatedAlbum);
-            return ResponseEntity.ok(responseDTO); // 200 OK
+            return ResponseEntity.ok(responseDTO);
 
         } catch (DataIntegrityViolationException e) {
             log.error("Error inserting album: {}", e.getMessage());
-            // Return a generic error response wrapped inside an AlbumResponseDTO
             AlbumResponseDTO errorResponse = new AlbumResponseDTO();
             errorResponse.setMessage("Error with album insertion: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         } catch (Exception e) {
             log.error("Unexpected error: {}", e.getMessage());
-            // Return a generic error response wrapped inside an AlbumResponseDTO
             AlbumResponseDTO errorResponse = new AlbumResponseDTO();
             errorResponse.setMessage("Unexpected error: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
 
 
 
