@@ -24,6 +24,7 @@ public class AlbumResponseDTO {
     private double price;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String message;  // Add this field to store messages like error or success messages
 
     // Constructor to map from Album to AlbumResponseDTO
     public AlbumResponseDTO(Album album) {

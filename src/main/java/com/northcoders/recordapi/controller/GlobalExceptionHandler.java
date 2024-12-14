@@ -2,69 +2,52 @@ package com.northcoders.recordapi.controller;
 
 import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
 import com.northcoders.recordapi.exception.ArtistNotFoundException;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
-import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
-import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
-import com.northcoders.recordapi.exception.AlbumNotFoundException; // Import the new exception
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ControllerAdvice;
-import org.springframework.web.bind.annotation.ExceptionHandler;
+import com.northcoders.recordapi.model.ErrorResponse;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGeneralException(Exception ex) {
-        Map<String, String> errorDetails = new HashMap<>();
-        errorDetails.put("error", "Internal Server Error");
-        errorDetails.put("message", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorDetails);
+    public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
+        ErrorResponse errorResponse = new ErrorResponse("Internal Server Error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
-        // Collect validation errors
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
-        System.out.println("Validation Errors: " + errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
 
-    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-
     @ExceptionHandler(AlbumAlreadyExistsException.class)
-    public ResponseEntity<Map<String, String>> handleAlbumAlreadyExistsException(AlbumAlreadyExistsException ex) {
-        Map<String, String> errorDetails = new HashMap<>();
-        errorDetails.put("error", "Conflict");
-        errorDetails.put("message", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorDetails);
+    public ResponseEntity<ErrorResponse> handleAlbumAlreadyExistsException(AlbumAlreadyExistsException ex) {
+        ErrorResponse errorResponse = new ErrorResponse("Conflict", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
 
-    @ExceptionHandler(AlbumNotFoundException.class)
-    public ResponseEntity<Object> handleAlbumNotFound(AlbumNotFoundException ex) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", ex.getMessage());
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    @ExceptionHandler(ArtistNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleArtistNotFound(ArtistNotFoundException e) {
+        ErrorResponse errorResponse = new ErrorResponse("Artist Not Found", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -73,11 +56,4 @@ public class GlobalExceptionHandler {
         Map<String, String> error = Map.of("genre", errorMessage);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
-
-    @ExceptionHandler(ArtistNotFoundException.class)
-    public ResponseEntity<String> handleArtistNotFound(ArtistNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-    }
-
 }
-

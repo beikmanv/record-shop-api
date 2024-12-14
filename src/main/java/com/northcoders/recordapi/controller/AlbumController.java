@@ -1,38 +1,41 @@
 package com.northcoders.recordapi.controller;
 
+import com.northcoders.recordapi.dto.AlbumRequestDTO;
 import com.northcoders.recordapi.dto.AlbumResponseDTO;
-import com.northcoders.recordapi.exception.AlbumAlreadyExistsException;
 import com.northcoders.recordapi.model.Album;
 import com.northcoders.recordapi.model.Artist;
+import com.northcoders.recordapi.model.Genre;
 import com.northcoders.recordapi.repository.AlbumRepository;
 import com.northcoders.recordapi.repository.ArtistRepository;
 import com.northcoders.recordapi.service.AlbumService;
-import com.northcoders.recordapi.service.AlbumServiceImpl;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.northcoders.recordapi.model.ErrorResponse;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/v1")
 public class AlbumController {
 
+    private static final Logger log = LoggerFactory.getLogger(AlbumController.class);
+
     @Autowired
     private AlbumService albumService;
 
     @Autowired
-    AlbumRepository albumRepository;
+    private AlbumRepository albumRepository;
 
     @Autowired
-    ArtistRepository artistRepository;
+    private ArtistRepository artistRepository;
 
     // Get all albums
     @GetMapping("/album")
@@ -50,49 +53,121 @@ public class AlbumController {
         return ResponseEntity.ok(response);
     }
 
-
     // Create a new album
-    @PostMapping("/album")
-    public ResponseEntity<Album> createAlbum(@RequestBody Album album) {
+    @PostMapping("/album")  // Ensure this method is mapped to a POST request for album creation
+    public ResponseEntity<AlbumResponseDTO> createAlbum(@RequestBody @Valid AlbumRequestDTO albumRequest) {
         try {
-            Album savedAlbum = albumService.createAlbum(album);
-            return new ResponseEntity<>(savedAlbum, HttpStatus.CREATED);
-        } catch (AlbumAlreadyExistsException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(null); // Include detailed error message here if needed
+            // Check if the artist exists in the database
+            Optional<Artist> optionalArtist = artistRepository.findByName(albumRequest.getArtistName());
+
+            Artist artist;
+            if (optionalArtist.isPresent()) {
+                // If the artist exists, use the existing artist
+                artist = optionalArtist.get();
+            } else {
+                // If the artist doesn't exist, create a new artist
+                artist = new Artist();
+                artist.setName(albumRequest.getArtistName());
+                artist = artistRepository.save(artist); // Save the new artist
+                log.warn("Artist '{}' was not found, a new artist has been created.", albumRequest.getArtistName());
+            }
+
+            // Create and set album details
+            Album album = new Album();
+            album.setTitle(albumRequest.getTitle());
+            album.setGenre(Genre.valueOf(albumRequest.getGenre()));  // Make sure Genre matches valid enum values
+            album.setReleaseYear(albumRequest.getReleaseYear());
+            album.setStock(albumRequest.getStock());
+            album.setPrice(albumRequest.getPrice());
+            album.setArtist(artist); // Set the artist
+            album.setCreatedAt(LocalDateTime.now());
+            album.setUpdatedAt(LocalDateTime.now());
+
+            // Save the album to the database
+            Album savedAlbum = albumRepository.save(album);
+
+            // Return response with the saved album, using the correct HTTP status
+            AlbumResponseDTO response = new AlbumResponseDTO(savedAlbum);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response); // 201 Created
+
+        } catch (DataIntegrityViolationException e) {
+            log.error("Error inserting album: {}", e.getMessage());
+            // Return a generic error response but wrapped inside an AlbumResponseDTO (no actual album created)
+            AlbumResponseDTO errorResponse = new AlbumResponseDTO();
+            errorResponse.setMessage("Error with album insertion: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            log.error("Unexpected error: {}", e.getMessage());
+            // Return a generic error response but wrapped inside an AlbumResponseDTO (no actual album created)
+            AlbumResponseDTO errorResponse = new AlbumResponseDTO();
+            errorResponse.setMessage("Unexpected error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
+
+
     // Update an album
     @PutMapping("/album/{id}")
-    public ResponseEntity<AlbumResponseDTO> updateAlbum(@PathVariable Long id, @RequestBody Album album) {
-        // Retrieve the existing album by ID
-        Album existingAlbum = albumRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Album not found"));
-        // Fetch the artist based on the artistId from the album request
-        Artist artist = album.getArtist() != null && album.getArtist().getArtistId() != null
-                ? artistRepository.findById(album.getArtist().getArtistId())
-                .orElseThrow(() -> new RuntimeException("Artist not found"))
-                : existingAlbum.getArtist(); // If no artist ID is provided, keep the existing artist
-        // Update the album's fields
-        existingAlbum.setTitle(album.getTitle());
-        existingAlbum.setGenre(album.getGenre());
-        existingAlbum.setReleaseYear(album.getReleaseYear());
-        existingAlbum.setStock(album.getStock());
-        existingAlbum.setPrice(album.getPrice());
-        existingAlbum.setArtist(artist);  // Set the artist (could be new or existing)
-        existingAlbum.setUpdatedAt(LocalDateTime.now());
-        // Save the updated album
-        Album updatedAlbum = albumRepository.save(existingAlbum);
-        // Return the updated album in the response with all necessary details
-        AlbumResponseDTO responseDTO = new AlbumResponseDTO(updatedAlbum);
-        return ResponseEntity.ok(responseDTO);
+    public ResponseEntity<AlbumResponseDTO> updateAlbum(@PathVariable Long id, @RequestBody @Valid Album album) {
+        try {
+            // Retrieve the existing album by ID
+            Album existingAlbum = albumRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Album not found"));
+
+            // Check if the ID in the request body matches the album ID in the URL
+            if (!album.getAlbumId().equals(id)) {
+                // Return an error message wrapped inside AlbumResponseDTO if the IDs don't match
+                AlbumResponseDTO errorResponse = new AlbumResponseDTO();
+                errorResponse.setMessage("Album ID mismatch: Cannot update with a different ID.");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+
+            // Fetch the artist based on the artistId from the album request
+            Artist artist = album.getArtist() != null && album.getArtist().getArtistId() != null
+                    ? artistRepository.findById(album.getArtist().getArtistId())
+                    .orElseThrow(() -> new RuntimeException("Artist not found"))
+                    : existingAlbum.getArtist(); // If no artist ID is provided, keep the existing artist
+
+            // Update the album's fields
+            existingAlbum.setTitle(album.getTitle());
+            existingAlbum.setGenre(album.getGenre());
+            existingAlbum.setReleaseYear(album.getReleaseYear());
+            existingAlbum.setStock(album.getStock());
+            existingAlbum.setPrice(album.getPrice());
+            existingAlbum.setArtist(artist);  // Set the artist (could be new or existing)
+            existingAlbum.setUpdatedAt(LocalDateTime.now());
+
+            // Save the updated album
+            Album updatedAlbum = albumRepository.save(existingAlbum);
+
+            // Return the updated album in the response with all necessary details
+            AlbumResponseDTO responseDTO = new AlbumResponseDTO(updatedAlbum);
+            return ResponseEntity.ok(responseDTO); // 200 OK
+
+        } catch (DataIntegrityViolationException e) {
+            log.error("Error inserting album: {}", e.getMessage());
+            // Return a generic error response wrapped inside an AlbumResponseDTO
+            AlbumResponseDTO errorResponse = new AlbumResponseDTO();
+            errorResponse.setMessage("Error with album insertion: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        } catch (Exception e) {
+            log.error("Unexpected error: {}", e.getMessage());
+            // Return a generic error response wrapped inside an AlbumResponseDTO
+            AlbumResponseDTO errorResponse = new AlbumResponseDTO();
+            errorResponse.setMessage("Unexpected error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
 
+
+
+
+
+
     // Delete an album by ID
-    @DeleteMapping("album/{id}")
+    @DeleteMapping("/album/{id}")
     public ResponseEntity<Void> deleteAlbum(@PathVariable Long id) {
         Optional<Album> deletedAlbum = albumService.deleteAlbum(id);
         if (deletedAlbum.isPresent()) {
@@ -101,5 +176,4 @@ public class AlbumController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();   // Status 404: Not Found
         }
     }
-
 }
