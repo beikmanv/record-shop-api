@@ -59,7 +59,7 @@ public class AlbumController {
     public ResponseEntity<AlbumResponseDTO> createAlbum(@RequestBody @Valid AlbumRequestDTO albumRequest) {
         try {
             // Check if the artist exists in the database
-            Optional<Artist> optionalArtist = artistRepository.findByName(albumRequest.getArtistName());
+            Optional<Artist> optionalArtist = artistRepository.findByArtistName(albumRequest.getArtistName());
 
             Artist artist;
             if (optionalArtist.isPresent()) {
@@ -68,7 +68,7 @@ public class AlbumController {
             } else {
                 // If the artist doesn't exist, create a new artist
                 artist = new Artist();
-                artist.setName(albumRequest.getArtistName());
+                artist.setArtistName(albumRequest.getArtistName());
                 artist = artistRepository.save(artist); // Save the new artist
                 log.warn("Artist '{}' was not found, a new artist has been created.", albumRequest.getArtistName());
             }
@@ -127,8 +127,8 @@ public class AlbumController {
                     .orElseThrow(() -> new RuntimeException("Artist not found"))
                     : existingAlbum.getArtist();
 
-            if (album.getArtist() != null && album.getArtist().getName() != null) {
-                artist.setName(album.getArtist().getName());
+            if (album.getArtist() != null && album.getArtist().getArtistName() != null) {
+                artist.setArtistName(album.getArtist().getArtistName());
                 artist = artistRepository.saveAndFlush(artist); // Ensure immediate persistence
             }
 

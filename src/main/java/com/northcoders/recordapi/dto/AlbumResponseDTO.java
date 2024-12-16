@@ -30,7 +30,7 @@ public class AlbumResponseDTO {
     public AlbumResponseDTO(Album album) {
         this.albumId = album.getAlbumId();
         this.artistId = album.getArtist() != null ? album.getArtist().getArtistId() : null;
-        this.artistName = album.getArtist() != null ? album.getArtist().getName() : null;
+        this.artistName = album.getArtist() != null ? album.getArtist().getArtistName() : null;
         this.title = album.getTitle();
         this.genre = album.getGenre().name(); // Convert enum to String
         this.releaseYear = album.getReleaseYear();

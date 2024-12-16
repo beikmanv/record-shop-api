@@ -78,7 +78,7 @@ public class AlbumServiceImpl implements AlbumService {
             // Log the conflict details for debugging
             String errorMsg = String.format("Album with title '%s', artist '%s', and release year '%d' already exists.",
                     album.getTitle(),
-                    existingArtist.get().getName(),
+                    existingArtist.get().getArtistName(),
                     album.getReleaseYear());
             logger.error(errorMsg); // Log detailed conflict error
             throw new AlbumAlreadyExistsException(errorMsg); // Throw detailed exception
