@@ -44,15 +44,12 @@ public class AlbumController {
     public ResponseEntity<List<AlbumResponseDTO>> getAllAlbums() {
         // Fetch all albums from the repository
         List<Album> albums = albumRepository.findAll();
-
         // Convert albums to AlbumResponseDTO
         List<AlbumResponseDTO> albumResponses = albums.stream()
-                .map(AlbumResponseDTO::new) // Map each album to an AlbumResponseDTO
+                .map(AlbumResponseDTO::new) // DTO mapping includes imageResource
                 .collect(Collectors.toList());
-
         return ResponseEntity.ok(albumResponses);
     }
-
 
     // Get album by ID
     @GetMapping("/album/{id}")

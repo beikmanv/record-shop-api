@@ -9,11 +9,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AlbumRequestDTO {
-//    private String artistName;
+
     private Artist artist;    // Use Artist object instead of artistName
     private String title;
     private String genre;
     private int releaseYear;
     private int stock;
     private double price;
+
 }

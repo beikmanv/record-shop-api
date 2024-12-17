@@ -25,6 +25,7 @@ public class AlbumResponseDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String message;  // To store messages like error or success messages
+    private String imageResource;  // New field for image resource name
 
     // Constructor to map from Album to AlbumResponseDTO
     public AlbumResponseDTO(Album album) {
@@ -38,6 +39,33 @@ public class AlbumResponseDTO {
         this.price = album.getPrice();
         this.createdAt = album.getCreatedAt();
         this.updatedAt = album.getUpdatedAt();
+        this.imageResource = mapImageResource(album); // Set image resource here
+    }
+
+    // Helper method to determine the image resource
+    private String mapImageResource(Album album) {
+        switch (album.getGenre()) {
+            case ROCK:
+                return "album1";  // Return the key, not the drawable path
+            case POP:
+                return "album2";
+            case JAZZ:
+                return "album3";
+            case HIP_HOP:
+                return "album4";
+            case ELECTRONIC:
+                return "album5";
+            case CLASSICAL:
+                return "album6";
+            case RELIGIOUS:
+                return "album7";
+            case REGGAE:
+                return "album8";
+            case COUNTRY:
+                return "album9";
+            default:
+                return "album10";  // Default album if genre is not found
+        }
     }
 
 }
