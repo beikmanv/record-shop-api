@@ -24,7 +24,7 @@ public class AlbumResponseDTO {
     private double price;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private String message;  // Add this field to store messages like error or success messages
+    private String message;  // To store messages like error or success messages
 
     // Constructor to map from Album to AlbumResponseDTO
     public AlbumResponseDTO(Album album) {
@@ -32,7 +32,7 @@ public class AlbumResponseDTO {
         this.artistId = album.getArtist() != null ? album.getArtist().getArtistId() : null;
         this.artistName = album.getArtist() != null ? album.getArtist().getArtistName() : null;
         this.title = album.getTitle();
-        this.genre = album.getGenre().name(); // Convert enum to String
+        this.genre = album.getGenre().name();
         this.releaseYear = album.getReleaseYear();
         this.stock = album.getStock();
         this.price = album.getPrice();
